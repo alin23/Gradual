@@ -218,6 +218,30 @@ def delete(uid: uuid):
     return alarm_data
 
 
+@hug.get('/test')
+@db_session
+def test(**kwargs):
+    now = datetime.now(tz=tz.tzlocal())
+    fade_args = {k[5:]: v for k, v in kwargs.items() if k.startswith('fade_')}
+    recommendation_args = {k[4:]: v for k, v in kwargs.items() if k.startswith('rec_')}
+
+    alarm = Alarm(
+        hour=now.hour,
+        minute=now.minute,
+        days=[now.weekday()],
+        moment='',
+        recurrent=False,
+        enabled=True,
+        temporary=True,
+        fade_args=fade_args,
+        recommendation_args=recommendation_args)
+    try:
+        alarm.play()
+    except Exception as exc:
+        logger.exception(exc)
+    alarm.delete()
+
+
 def run():
     global enabled, cli
     cli = False
