@@ -1,0 +1,28 @@
+[fade]
+start = 1
+limit = 100
+spotify_volume = 80
+step = 1
+seconds = 300
+force = false
+
+[database]
+provider = "sqlite"
+filename = "$HOME/.cache/alarm/db.sqlite"
+create_db = true
+
+[spotify.auth]
+email = 'alin.p32@gmail.com'
+username = 'alin.p32'
+
+[spotify.player]
+device = 'HomePod'
+speaker = ''
+
+[recommendations]
+features_order = "$energy - $valence - $acousticness - $instrumentalness"
+min_acousticness = 0.3
+min_valence = 0.5
+
+[location]
+name = "Iași"

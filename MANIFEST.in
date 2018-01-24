@@ -1,0 +1,4 @@
+include LICENSE-APACHE
+include LICENSE-MIT
+include README.rst
+include gradual/config.toml
