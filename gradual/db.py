@@ -14,6 +14,7 @@ from psycopg2.extensions import register_adapter
 
 from . import config
 from .constants import ASTRAL, SPOTIFY
+from spfy.constants import ItemType
 
 register_adapter(ormtypes.TrackedDict, psycopg2.extras.Json)
 logging.getLogger('backoff').addHandler(logging.StreamHandler())
@@ -168,6 +169,7 @@ class Alarm(db.Entity):
     @db_session
     def play(self):
         SPOTIFY.play(
+            item_type=ItemType.TRACKS,
             device=config.spotify.player.device,
             fade_args={**config.fade, **self.fade_args},
             recommendation_args={**config.recommendations, **self.recommendation_args})

@@ -20,9 +20,19 @@ device = 'HomePod'
 speaker = ''
 
 [recommendations]
-features_order = "$energy - $valence - $acousticness - $instrumentalness"
+artist_limit = 3
+use_related = false
+
 min_acousticness = 0.3
-min_valence = 0.5
+max_speechiness = 0.5
+min_valence = 0.4
+
+    [recommendations.features_order]
+    loudness = 1
+    energy = 1
+    instrumentalness = -1
+    speechiness = 1
+    valence = -1
 
 [location]
 name = "Iași"
