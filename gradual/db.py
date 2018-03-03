@@ -102,10 +102,11 @@ class Alarm(db.Entity):
 
     def should_play(self):
         now = datetime.now(tz=tz.tzlocal())
+        next_time = self.next_time
         conditions = (
             self.enabled and
-            self.hour == now.hour and
-            self.minute == now.minute and
+            next_time.hour == now.hour and
+            next_time.minute == now.minute and
             now.weekday() in self.days
         )
         if conditions:
