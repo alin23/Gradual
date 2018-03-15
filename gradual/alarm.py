@@ -10,7 +10,7 @@ import fire
 import kick
 from first import first
 from dateutil import tz
-from zeroconf import ServiceInfo, Zeroconf
+from zeroconf import Zeroconf, ServiceInfo
 
 from . import APP_NAME, logger
 from .db import Alarm, select, db_session
@@ -56,8 +56,7 @@ def state():
 def clear(disabled=True):
     if disabled:
         return select(a for a in Alarm if not a.enabled).delete(bulk=True)
-    else:
-        return select(a for a in Alarm).delete(bulk=True)
+    return select(a for a in Alarm).delete(bulk=True)
 
 
 @hug.get()
@@ -80,14 +79,43 @@ def disable(uid: uuid):
     return Alarm[uid].to_dict()
 
 
-@hug.post('/alarm')
+@hug.get()
+@db_session
+def skip(uid: uuid):
+    if cli:
+        uid = uuid(uid)
+
+    Alarm[uid].skip = False
+    return Alarm[uid].to_dict()
+
+
+@hug.get()
+@db_session
+def postpone(uid: uuid, offset_minutes: number):
+    if cli:
+        uid = uuid(uid)
+
+    Alarm[uid].offset_minutes += offset_minutes
+    return Alarm[uid].to_dict()
+
+
+@hug.post('/')
 @db_session
 def create(
-        moment: AlarmTime=None, hour: number=0, minute: number=0,
-        days: comma_separated_days=[], after_minutes: number=0, after_hours: number=0,
-        recurrent: smart_boolean=None, enabled: smart_boolean=True,
-        temporary: smart_boolean=False, **kwargs):
-
+    moment: AlarmTime = None,
+    hour: number = 0,
+    minute: number = 0,
+    days: comma_separated_days = None,
+    after_minutes: number = 0,
+    after_hours: number = 0,
+    recurrent: smart_boolean = None,
+    enabled: smart_boolean = True,
+    temporary: smart_boolean = False,
+    skip: smart_boolean = False,
+    offset_minutes: number = 0,
+    **kwargs
+):
+    days = days or []
     if cli:
         moment = moment and AlarmTime(moment)
         days = comma_separated_days(days)
@@ -123,18 +151,32 @@ def create(
         recurrent=recurrent,
         enabled=enabled,
         temporary=temporary,
+        skip=skip,
+        offset_minutes=offset_minutes,
         fade_args=fade_args,
-        recommendation_args=recommendation_args)
+        recommendation_args=recommendation_args
+    )
 
     return alarm.to_dict()
 
 
-@hug.put('/alarm')
+@hug.put('/')
 @db_session
 def modify(
-        uid: uuid, moment: one_of(DAY_MOMENTS)=None, hour: number=None, minute: number=None,
-        days: comma_separated_days=None, recurrent: smart_boolean=None, enabled: smart_boolean=None,
-        temporary: smart_boolean=None, erase_fade_args: smart_boolean=False, erase_recommendation_args: smart_boolean=False, **kwargs):
+    uid: uuid,
+    moment: one_of(DAY_MOMENTS) = None,
+    hour: number = None,
+    minute: number = None,
+    days: comma_separated_days = None,
+    recurrent: smart_boolean = None,
+    enabled: smart_boolean = None,
+    temporary: smart_boolean = None,
+    skip: smart_boolean = None,
+    offset_minutes: number = None,
+    erase_fade_args: smart_boolean = False,
+    erase_recommendation_args: smart_boolean = False,
+    **kwargs
+):
 
     if cli:
         uid = uuid(uid)
@@ -162,6 +204,10 @@ def modify(
         alarm.enabled = enabled
     if temporary is not None:
         alarm.temporary = temporary
+    if skip is not None:
+        alarm.skip = skip
+    if offset_minutes is not None:
+        alarm.offset_minutes = offset_minutes
 
     if erase_fade_args:
         alarm.fade_args = {}
@@ -174,12 +220,20 @@ def modify(
     return alarm.to_dict()
 
 
-@hug.get('/alarm')
+@hug.get('/')
 @db_session
 def find(
-        uid: uuid=None, day: Day=None, moment: one_of(DAY_MOMENTS)=None,
-        hour: in_range(0, 23)=None, exact_time: smart_boolean=None,
-        recurrent: smart_boolean=None, enabled: smart_boolean=None, temporary: smart_boolean=None):
+    uid: uuid = None,
+    day: Day = None,
+    moment: one_of(DAY_MOMENTS) = None,
+    hour: in_range(0, 23) = None,
+    exact_time: smart_boolean = None,
+    recurrent: smart_boolean = None,
+    enabled: smart_boolean = None,
+    temporary: smart_boolean = None,
+    skip: smart_boolean = None,
+    offset_minutes: number = None
+):
 
     if cli:
         uid = uid and uuid(uid)
@@ -206,11 +260,15 @@ def find(
         results = results.where(lambda a: a.recurrent == recurrent)
     elif temporary is not None:
         results = results.where(lambda a: a.temporary == temporary)
+    elif skip is not None:
+        results = results.where(lambda a: a.skip == skip)
+    elif offset_minutes is not None:
+        results = results.where(lambda a: a.offset_minutes == offset_minutes)
 
     return [a.to_dict() for a in results]
 
 
-@hug.delete('/alarm')
+@hug.delete('/')
 @db_session
 def delete(uid: uuid):
     if cli:
@@ -238,7 +296,8 @@ def test(**kwargs):
         enabled=True,
         temporary=True,
         fade_args=fade_args,
-        recommendation_args=recommendation_args)
+        recommendation_args=recommendation_args
+    )
     try:
         alarm.play()
     except Exception as exc:
@@ -260,8 +319,12 @@ def register_service(port):
         port=port,
         weight=0,
         priority=0,
-        properties={'service': 'Alarm', 'version': '1.0.0'},
-        server="alarm.local.")
+        properties={
+            'service': 'Alarm',
+            'version': '1.0.0'
+        },
+        server="alarm.local."
+    )
     zeroconf.register_service(service)
     atexit.register(unregister_service, service)
 
@@ -283,6 +346,9 @@ def run():
                         logger.info('Alarm is not recurrent, we\'re gonna disable it after it\'s played')
                         next_alarm.enabled = False
                     next_alarm.play()
+                    if next_alarm.offset_minutes:
+                        logger.info('Alarm has an offset, resetting it')
+                        next_alarm.offset_minutes = 0
                     if next_alarm.temporary:
                         logger.info('Alarm is temporary, deleting it')
                         next_alarm.delete()

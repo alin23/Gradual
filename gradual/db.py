@@ -10,11 +10,11 @@ import psycopg2.extras
 from first import first
 from dateutil import tz
 from pony.orm import *
+from spfy.constants import ItemType
 from psycopg2.extensions import register_adapter
 
 from . import config
 from .constants import ASTRAL, SPOTIFY
-from spfy.constants import ItemType
 
 register_adapter(ormtypes.TrackedDict, psycopg2.extras.Json)
 logging.getLogger('backoff').addHandler(logging.StreamHandler())
@@ -44,12 +44,7 @@ class Location(db.Entity):
     @classmethod
     def from_json(cls, resp):
         location = astral.Location([
-            resp['city'],
-            resp['region_name'],
-            resp['latitude'],
-            resp['longitude'],
-            resp['time_zone'],
-            0
+            resp['city'], resp['region_name'], resp['latitude'], resp['longitude'], resp['time_zone'], 0
         ])
         ASTRAL.geocoder._get_elevation(location)
         fields = {f: getattr(location, f) for f in cls.FIELDS}
@@ -89,9 +84,11 @@ class Alarm(db.Entity):
     recurrent = Required(bool, default=False, index=True)
     enabled = Required(bool, default=True, index=True)
     temporary = Required(bool, default=False, index=True)
+    skip = Required(bool, default=False, index=True)
     fade_args = Required(Json, volatile=True)
     recommendation_args = Required(Json, volatile=True)
     created_at = Required(datetime, default=datetime.now)
+    offset_minutes = Required(int, default=0)
 
     def to_dict(self, *args, **kwargs):
         d = super().to_dict(*args, **kwargs)
@@ -104,12 +101,13 @@ class Alarm(db.Entity):
         now = datetime.now(tz=tz.tzlocal())
         next_time = self.next_time
         conditions = (
-            self.enabled and
-            next_time.hour == now.hour and
-            next_time.minute == now.minute and
-            now.weekday() in self.days
+            self.enabled and next_time.hour == now.hour and next_time.minute == now.minute
+            and now.weekday() in self.days
         )
         if conditions:
+            if self.skip:
+                self.skip = False
+                return False
             playback = SPOTIFY.current_playback()
             if playback:
                 return not playback.is_playing
@@ -141,7 +139,9 @@ class Alarm(db.Entity):
 
         if self.moment:
             moment_time = self.get_moment_time(self.moment)
-            not_today = now.hour > moment_time.hour or (now.hour == moment_time.hour and now.minute > moment_time.minute)
+            not_today = now.hour > moment_time.hour or (
+                now.hour == moment_time.hour and now.minute > moment_time.minute
+            )
         else:
             not_today = now.hour > self.hour or (now.hour == self.hour and now.minute > self.minute)
 
@@ -160,10 +160,14 @@ class Alarm(db.Entity):
         if self.moment:
             next_time = self.get_moment_time(self.moment, day=date.today() + timedelta(days=self.next_day - weekday))
         else:
-            next_time = datetime(now.year, now.month, now.day, self.hour, self.minute, tzinfo=tz.tzlocal()) + timedelta(days=self.next_day - weekday)
+            next_time = datetime(
+                now.year, now.month, now.day, self.hour, self.minute, tzinfo=tz.tzlocal()
+            ) + timedelta(days=self.next_day - weekday)
 
         if next_time < now.replace(second=0, microsecond=0):
             next_time += timedelta(days=7)
+        if self.offset_minutes:
+            next_time += timedelta(minutes=self.offset_minutes)
 
         return next_time
 
@@ -172,8 +176,15 @@ class Alarm(db.Entity):
         SPOTIFY.play(
             item_type=ItemType.TRACKS,
             device=config.spotify.player.device,
-            fade_args={**config.fade, **self.fade_args},
-            recommendation_args={**config.recommendations, **self.recommendation_args})
+            fade_args={
+                **config.fade,
+                **self.fade_args
+            },
+            recommendation_args={
+                **config.recommendations,
+                **self.recommendation_args
+            }
+        )
 
 
 if config.database.filename:
