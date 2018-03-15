@@ -91,7 +91,7 @@ def skip(uid: uuid):
 
 @hug.get()
 @db_session
-def postpone(uid: uuid, offset_minutes: number):
+def postpone(uid: uuid, offset_minutes: number = 30):
     if cli:
         uid = uuid(uid)
 
