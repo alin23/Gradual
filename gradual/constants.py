@@ -1,7 +1,7 @@
 from enum import IntEnum
 
 from spfy import Spotify
-from astral import *
+from astral import Astral, GoogleGeocoder
 
 from .import config
 

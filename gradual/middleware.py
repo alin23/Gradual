@@ -1,9 +1,9 @@
 import json
 
-from hug.middleware import LogMiddleware
+from hug.middleware import LogMiddleware as HugLogMiddleware
 
 
-class LogMiddleware(LogMiddleware):
+class LogMiddleware(HugLogMiddleware):
 
     def _generate_combined_log(self, request, response):
         info = super()._generate_combined_log(request, response)

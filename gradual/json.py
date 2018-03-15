@@ -6,6 +6,7 @@ from astral import Location
 
 class LocationEncoder(json.JSONEncoder):
 
+    # pylint: disable=method-hidden
     def default(self, o):
         if isinstance(o, Location):
             return {

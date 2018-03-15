@@ -22,6 +22,9 @@ def Day(value):
     return Weekday[value.upper()].value
 
 
+
+
+# pylint: disable=too-few-public-methods
 class Days(DelimitedList):
     """Parses day strings as calendar days"""
 
