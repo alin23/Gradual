@@ -3,7 +3,7 @@ from enum import IntEnum
 from spfy import Spotify
 from astral import *
 
-from . import config
+from .import config
 
 
 class Weekday(IntEnum):
@@ -18,8 +18,6 @@ class Weekday(IntEnum):
 
 ASTRAL = Astral()
 ASTRAL.geocoder = GoogleGeocoder(cache=True)
-
-
 DAY_MOMENTS = {
     'blue_hour',
     'blue_hour_middle',
@@ -34,8 +32,7 @@ DAY_MOMENTS = {
     'sunset',
     'twilight',
     'twilight_middle',
-    'twilight_end'
+    'twilight_end',
 }
-
-SPOTIFY = Spotify(**config.spotify.player)
-SPOTIFY.authenticate(**config.spotify.auth)
+SPOTIFY = Spotify(** config.spotify.player)
+SPOTIFY.authenticate(** config.spotify.auth)

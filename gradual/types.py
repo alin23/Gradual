@@ -8,9 +8,9 @@ from .constants import DAY_MOMENTS, Weekday
 @hug.type(extend=text)
 def AlarmTime(value):
     """Parses text as datetime using dateutil.parser"""
-
     if value in DAY_MOMENTS:
         return value
+
     return parser.parse(value).replace(tzinfo=tz.tzlocal())
 
 
@@ -18,6 +18,7 @@ def AlarmTime(value):
 def Day(value):
     if isinstance(value, int):
         return value
+
     return Weekday[value.upper()].value
 
 
@@ -33,7 +34,6 @@ class Days(DelimitedList):
             days = list(map(int, values))
         except:
             days = [Weekday[day.upper()].value for day in values]
-
         return sorted(set(days))
 
 

@@ -5,6 +5,7 @@ from astral import Location
 
 
 class LocationEncoder(json.JSONEncoder):
+
     def default(self, o):
         if isinstance(o, Location):
             return {
@@ -15,11 +16,14 @@ class LocationEncoder(json.JSONEncoder):
                 'timezone': o.timezone,
                 'elevation': o.elevation,
             }
+
         return super().default(o)
 
 
 class LocationDecoder(json.JSONDecoder):
-    LOCATION_FIELDS = {'name', 'region', 'latitude', 'longitude', 'timezone', 'elevation'}
+    LOCATION_FIELDS = {
+        'name', 'region', 'latitude', 'longitude', 'timezone', 'elevation'
+    }
 
     def __init__(self, *args, **kwargs):
         kwargs.pop('object_hook', None)
@@ -27,14 +31,17 @@ class LocationDecoder(json.JSONDecoder):
 
     def decode_location_object(self, o):
         if o.keys() == self.LOCATION_FIELDS:
-            return Location([
-                o['name'],
-                o['region'],
-                o['latitude'],
-                o['longitude'],
-                o['timezone'],
-                o['elevation'],
-            ])
+            return Location(
+                [
+                    o['name'],
+                    o['region'],
+                    o['latitude'],
+                    o['longitude'],
+                    o['timezone'],
+                    o['elevation'],
+                ]
+            )
+
         return o
 
 
