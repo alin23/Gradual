@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import atexit
+import socket
 from time import sleep
 from datetime import datetime, timedelta
 from threading import Thread
@@ -8,6 +10,7 @@ import fire
 import kick
 from first import first
 from dateutil import tz
+from zeroconf import ServiceInfo, Zeroconf
 
 from . import APP_NAME, logger
 from .db import Alarm, select, db_session
@@ -26,6 +29,7 @@ from .middleware import LogMiddleware
 
 enabled = True
 cli = False
+zeroconf = Zeroconf()
 
 
 @hug.get()
@@ -242,9 +246,30 @@ def test(**kwargs):
     alarm.delete()
 
 
+def unregister_service(service):
+    zeroconf.unregister_service(service)
+    zeroconf.close()
+
+
+def register_service(port):
+    global zeroconf
+    service = ServiceInfo(
+        "_http._tcp.local.",
+        "Alarm Service._http._tcp.local.",
+        address=socket.inet_aton("127.0.0.1"),
+        port=port,
+        weight=0,
+        priority=0,
+        properties={'service': 'Alarm', 'version': '1.0.0'},
+        server="alarm.local.")
+    zeroconf.register_service(service)
+    atexit.register(unregister_service, service)
+
+
 def run():
     global enabled, cli
     cli = False
+    register_service(6035)
     Thread(target=api.http.serve, kwargs=dict(port=6035), daemon=True).start()
 
     while True:

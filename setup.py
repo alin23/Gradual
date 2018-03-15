@@ -26,6 +26,7 @@ REQUIRES = [
     'python-dateutil',
     'hug',
     'pony',
+    'zeroconf',
     'astral',
 ]
 
